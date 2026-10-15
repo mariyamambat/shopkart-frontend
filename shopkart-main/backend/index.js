@@ -1,11 +1,10 @@
-import dns from 'dns';
-dns.setServers(['8.8.8.8', '8.8.4.4']);
-
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import customerRouter from "./routes/customer.routes.js";
 import productRouter from "./routes/product.routes.js";
 import wishlistRouter from "./routes/wishlist.routes.js";
@@ -14,6 +13,9 @@ import orderRouter from "./routes/order.routes.js";
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 
 app.use(cors({
@@ -21,7 +23,9 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());       // parses incoming JSON request bodies into req.body
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());       // parses cookies into req.cookies
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/customers", customerRouter);
 app.use("/products", productRouter);
 app.use("/wishlist", wishlistRouter);

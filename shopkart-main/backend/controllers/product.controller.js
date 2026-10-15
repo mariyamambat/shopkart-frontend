@@ -3,33 +3,114 @@ import Product from "../models/product.model.js";
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, category, image, stock } = req.body;
+    const { name, description, price, category, stock } = req.body;
+    const imageFromBody = req.body.image;
+
+    // Handle image from either file upload (req.file) or text/URL (req.body.image)
+    const image = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      : imageFromBody;
 
     if (!name || !description || !category || !image) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields are required (name, description, price, category, image, stock)" });
     }
 
-    if (price === undefined || price <= 0) {
+    const parsedPrice = Number(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
       return res.status(400).json({ message: "Price must be greater than 0" });
     }
 
-    if (stock === undefined || stock < 0) {
+    const parsedStock = Number(stock);
+    if (isNaN(parsedStock) || parsedStock < 0) {
       return res.status(400).json({ message: "Stock cannot be negative" });
     }
 
     const newProduct = await Product.create({
       name,
       description,
-      price,
+      price: parsedPrice,
       category,
       image,
-      stock,
+      stock: parsedStock,
     });
 
     res.status(201).json({
       success: true,
       message: "Product created successfully",
       product: newProduct,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server crashed", error: error.message });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid product ID" });
+    }
+
+    const updates = { ...req.body };
+
+    // If an image file was uploaded, use its URL
+    if (req.file) {
+      updates.image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    if (updates.price !== undefined) {
+      const parsedPrice = Number(updates.price);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        return res.status(400).json({ message: "Price must be greater than 0" });
+      }
+      updates.price = parsedPrice;
+    }
+
+    if (updates.stock !== undefined) {
+      const parsedStock = Number(updates.stock);
+      if (isNaN(parsedStock) || parsedStock < 0) {
+        return res.status(400).json({ message: "Stock cannot be negative" });
+      }
+      updates.stock = parsedStock;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product updated successfully",
+      product: updatedProduct,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server crashed", error: error.message });
+  }
+};
+
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid product ID" });
+    }
+
+    const deletedProduct = await Product.findByIdAndDelete(id);
+
+    if (!deletedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product deleted successfully",
     });
   } catch (error) {
     res.status(500).json({ message: "Server crashed", error: error.message });
